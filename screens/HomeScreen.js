@@ -1,61 +1,77 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Button, TouchableOpacity, StyleSheet } from 'react-native';
-import db from '../database/db';
-import { useIsFocused } from '@react-navigation/native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import api from '../api/api';
+import { useNavigation } from '@react-navigation/native';
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen() {
   const [planos, setPlanos] = useState([]);
-  const isFocused = useIsFocused(); // atualiza lista ao voltar para essa tela
+  const navigation = useNavigation();
 
   useEffect(() => {
     carregarPlanos();
-  }, [isFocused]);
+  }, []);
 
-  const carregarPlanos = () => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM planos;',
-        [],
-        (_, { rows }) => setPlanos(rows._array),
-        (_, error) => {
-          console.error('Erro ao buscar planos:', error);
-          return false;
-        }
-      );
-    });
+  const carregarPlanos = async () => {
+    try {
+      const response = await api.get('/planos');
+      setPlanos(response.data);
+    } catch (error) {
+      console.error('Erro ao carregar planos:', error);
+    }
   };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={styles.planoItem}
-      onPress={() => navigation.navigate('DetalhesPlano', { planoId: item.id, nome: item.nome })}
+      style={styles.card}
+      onPress={() => navigation.navigate('DetalhesPlano', { planoId: item.id })}
     >
-      <Text style={styles.planoTexto}>{item.nome}</Text>
+      <Text style={styles.cardTitulo}>{item.nome}</Text>
+      <Text style={styles.cardSubtitulo}>🎯 {item.diaSemana}</Text>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
+      <Text style={styles.titulo}>Seus Planos de Estudo</Text>
+
       <FlatList
         data={planos}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.vazio}>Nenhum plano cadastrado.</Text>}
+        contentContainerStyle={{ paddingBottom: 80 }}
       />
-      <Button title="Criar Novo Plano" onPress={() => navigation.navigate('NovoPlano')} />
+
+      <TouchableOpacity
+        style={styles.botaoNovo}
+        onPress={() => navigation.navigate('NovoPlano')}
+      >
+        <Text style={styles.botaoTexto}>+ Novo Plano</Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  planoItem: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    marginBottom: 8,
+  container: { flex: 1, backgroundColor: '#fffdf8', padding: 16 },
+  titulo: { fontSize: 20, fontWeight: 'bold', marginBottom: 16, color: '#6a1b9a' },
+  card: {
+    backgroundColor: '#f5e9ff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    borderLeftWidth: 6,
+    borderLeftColor: '#6a1b9a',
   },
-  planoTexto: { fontSize: 18 },
-  vazio: { textAlign: 'center', marginVertical: 16, color: '#777' },
+  cardTitulo: { fontSize: 18, fontWeight: 'bold' },
+  cardSubtitulo: { marginTop: 4, color: '#555' },
+  botaoNovo: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    backgroundColor: '#6a1b9a',
+    padding: 16,
+    borderRadius: 32,
+    elevation: 4,
+  },
+  botaoTexto: { color: '#fff', fontWeight: 'bold' },
 });

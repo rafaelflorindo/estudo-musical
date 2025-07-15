@@ -1,105 +1,156 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
-import db from '../database/db';
-import { useIsFocused } from '@react-navigation/native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert } from 'react-native';
+import api from '../api/api';
 
-export default function PlanDetailScreen({ route }) {
-  const { planoId, nome } = route.params;
+export default function PlanDetailScreen({ route, navigation }) {
+  const { planoId } = route.params;
+  const [plano, setPlano] = useState(null);
   const [tarefas, setTarefas] = useState([]);
-  const [descricao, setDescricao] = useState('');
-  const isFocused = useIsFocused();
+  const [novaTarefa, setNovaTarefa] = useState('');
 
   useEffect(() => {
+    carregarPlano();
     carregarTarefas();
-  }, [isFocused]);
+  }, []);
 
-  const carregarTarefas = () => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'SELECT * FROM tarefas WHERE plano_id = ?;',
-        [planoId],
-        (_, { rows }) => setTarefas(rows._array)
-      );
-    });
+  const carregarPlano = async () => {
+    try {
+      const response = await api.get(`/planos/${planoId}`);
+      setPlano(response.data);
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao carregar plano.');
+      console.error(error);
+    }
   };
 
-  const adicionarTarefa = () => {
-    if (!descricao.trim()) return;
-
-    db.transaction(tx => {
-      tx.executeSql(
-        'INSERT INTO tarefas (plano_id, descricao) VALUES (?, ?);',
-        [planoId, descricao],
-        () => {
-          setDescricao('');
-          carregarTarefas();
-        }
-      );
-    });
+  const carregarTarefas = async () => {
+    try {
+      const response = await api.get(`/planos/${planoId}/tarefas`);
+      setTarefas(response.data);
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao carregar tarefas.');
+      console.error(error);
+    }
   };
 
-  const alternarConclusao = (id, atual) => {
-    db.transaction(tx => {
-      tx.executeSql(
-        'UPDATE tarefas SET concluida = ? WHERE id = ?;',
-        [atual ? 0 : 1, id],
-        () => carregarTarefas()
-      );
-    });
+  const adicionarTarefa = async () => {
+    if (!novaTarefa.trim()) {
+      Alert.alert('Atenção', 'Informe o nome da tarefa.');
+      return;
+    }
+    try {
+      await api.post(`/planos/${planoId}/tarefas`, { nome: novaTarefa });
+      setNovaTarefa('');
+      carregarTarefas();
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao adicionar tarefa.');
+      console.error(error);
+    }
+  };
+
+  const alternarConclusao = async (tarefa) => {
+    try {
+      await api.put(`/tarefas/${tarefa.id}`, { concluida: !tarefa.concluida });
+      carregarTarefas();
+    } catch (error) {
+      Alert.alert('Erro', 'Falha ao atualizar tarefa.');
+      console.error(error);
+    }
   };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
-      style={[styles.tarefaItem, item.concluida ? styles.tarefaConcluida : null]}
-      onPress={() => alternarConclusao(item.id, item.concluida)}
+      style={[styles.tarefaItem, item.concluida && styles.tarefaConcluida]}
+      onPress={() => alternarConclusao(item)}
     >
-      <Text style={styles.tarefaTexto}>{item.descricao}</Text>
+      <Text style={[styles.tarefaTexto, item.concluida && styles.tarefaTextoConcluida]}>
+        {item.nome}
+      </Text>
     </TouchableOpacity>
   );
 
+  if (!plano) {
+    return (
+      <View style={styles.container}>
+        <Text>Carregando plano...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.titulo}>{nome}</Text>
+      <Text style={styles.titulo}>{plano.nome} ({plano.diaSemana})</Text>
 
       <FlatList
         data={tarefas}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.vazio}>Nenhuma tarefa adicionada.</Text>}
+        contentContainerStyle={{ paddingBottom: 20 }}
       />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Nova tarefa"
-        value={descricao}
-        onChangeText={setDescricao}
-      />
-      <Button title="Adicionar Tarefa" onPress={adicionarTarefa} />
+      <View style={styles.novaTarefaWrapper}>
+        <TextInput
+          placeholder="Nova tarefa"
+          value={novaTarefa}
+          onChangeText={setNovaTarefa}
+          style={styles.input}
+        />
+        <TouchableOpacity style={styles.botao} onPress={adicionarTarefa}>
+          <Text style={styles.botaoTexto}>Adicionar</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  titulo: { fontSize: 22, marginBottom: 12, fontWeight: 'bold' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#aaa',
-    padding: 10,
-    marginTop: 8,
-    marginBottom: 16,
-    borderRadius: 6,
+  container: { flex: 1, padding: 24, backgroundColor: '#fffaf8' },
+  titulo: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    color: '#6a1b9a',
   },
   tarefaItem: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    marginBottom: 8,
-    borderRadius: 6,
+    padding: 16,
+    backgroundColor: '#f7e9ff',
+    borderRadius: 10,
+    marginBottom: 12,
   },
   tarefaConcluida: {
-    backgroundColor: '#d3ffd3',
+    backgroundColor: '#d1c4e9',
   },
-  tarefaTexto: { fontSize: 16 },
-  vazio: { textAlign: 'center', marginVertical: 16, color: '#777' },
+  tarefaTexto: {
+    fontSize: 16,
+    color: '#3c2f5a',
+  },
+  tarefaTextoConcluida: {
+    textDecorationLine: 'line-through',
+    color: '#7a6a9f',
+  },
+  novaTarefaWrapper: {
+    flexDirection: 'row',
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    marginRight: 12,
+  },
+  botao: {
+    backgroundColor: '#6a1b9a',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+  },
+  botaoTexto: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 });
