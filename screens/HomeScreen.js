@@ -1,16 +1,32 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
 import api from '../api/api';
 import { useNavigation } from '@react-navigation/native';
+
+import Icon from 'react-native-vector-icons/MaterialIcons'; // já importe no topo
+
 
 export default function HomeScreen() {
   const [planos, setPlanos] = useState([]);
   const navigation = useNavigation();
 
+  const [editandoId, setEditandoId] = useState(null);
+const [descricaoEditada, setDescricaoEditada] = useState('');
+
+
   useEffect(() => {
     carregarPlanos();
   }, []);
-
+  const salvarEdicaoPlano = async (id) => {
+    try {
+      await api.put(`/planos/${id}`, { nome: descricaoEditada });
+      setEditandoId(null);
+      setDescricaoEditada('');
+      carregarPlanos();
+    } catch (error) {
+      console.error('Erro ao editar plano:', error);
+    }
+  };
   const carregarPlanos = async () => {
     try {
       const response = await api.get('/planos');
@@ -25,7 +41,30 @@ export default function HomeScreen() {
       style={styles.card}
       onPress={() => navigation.navigate('DetalhesPlano', { planoId: item.id })}
     >
-      <Text style={styles.cardTitulo}>{item.nome}</Text>
+      {editandoId === item.id ? (
+        <TextInput
+          value={descricaoEditada}
+          onChangeText={setDescricaoEditada}
+          onBlur={() => salvarEdicaoPlano(item.id)}
+          onSubmitEditing={() => salvarEdicaoPlano(item.id)}
+          autoFocus
+          style={styles.cardTitulo}
+        />
+      ) : (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={styles.cardTitulo}>{item.nome}</Text>
+          <TouchableOpacity
+            onPress={(e) => {
+              e.stopPropagation(); // evita abrir detalhes ao clicar no lápis
+              setEditandoId(item.id);
+              setDescricaoEditada(item.nome);
+            }}
+          >
+            <Icon name="edit" size={20} color="#6a1b9a" />
+          </TouchableOpacity>
+        </View>
+      )}
+  
       <Text style={styles.cardSubtitulo}>🎯 {item.diaSemana}</Text>
     </TouchableOpacity>
   );
@@ -62,7 +101,12 @@ const styles = StyleSheet.create({
     borderLeftWidth: 6,
     borderLeftColor: '#6a1b9a',
   },
-  cardTitulo: { fontSize: 18, fontWeight: 'bold' },
+  cardTitulo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#3c2f5a',
+    paddingVertical: 4,
+  },
   cardSubtitulo: { marginTop: 4, color: '#555' },
   botaoNovo: {
     position: 'absolute',

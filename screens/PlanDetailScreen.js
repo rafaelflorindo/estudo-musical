@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
+import { LayoutAnimation, Platform, UIManager } from 'react-native';
 import api from '../api/api';
 
 export default function PlanDetailScreen({ route, navigation }) {
@@ -7,6 +9,13 @@ export default function PlanDetailScreen({ route, navigation }) {
   const [plano, setPlano] = useState(null);
   const [tarefas, setTarefas] = useState([]);
   const [novaTarefa, setNovaTarefa] = useState('');
+
+  const [editandoId, setEditandoId] = useState(null);
+  const [descricaoEditada, setDescricaoEditada] = useState('');
+
+  if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
 
   useEffect(() => {
     carregarPlano();
@@ -25,6 +34,7 @@ export default function PlanDetailScreen({ route, navigation }) {
 
   const carregarTarefas = async () => {
     try {
+      
       const response = await api.get(`/planos/${planoId}/tarefas`);
       setTarefas(response.data);
     } catch (error) {
@@ -39,7 +49,7 @@ export default function PlanDetailScreen({ route, navigation }) {
       return;
     }
     try {
-      await api.post(`/planos/${planoId}/tarefas`, { nome: novaTarefa });
+      await api.post(`/planos/${planoId}/tarefas`, { descricao: novaTarefa });
       setNovaTarefa('');
       carregarTarefas();
     } catch (error) {
@@ -48,26 +58,76 @@ export default function PlanDetailScreen({ route, navigation }) {
     }
   };
 
-  const alternarConclusao = async (tarefa) => {
-    try {
-      await api.put(`/tarefas/${tarefa.id}`, { concluida: !tarefa.concluida });
-      carregarTarefas();
-    } catch (error) {
-      Alert.alert('Erro', 'Falha ao atualizar tarefa.');
-      console.error(error);
-    }
-  };
+ const alternarConclusao = async (tarefa) => {
+  try {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    await api.put(`/tarefas/${tarefa.id}`, {
+      concluida: !tarefa.concluida,
+    });
+    carregarTarefas();
+  } catch (error) {
+    Alert.alert('Erro', 'Falha ao atualizar tarefa.');
+    console.error(error);
+  }
+};
+const salvarEdicao = async (tarefaId) => {
+  try {
+    await api.put(`/tarefas/${tarefaId}`, { descricao: descricaoEditada });
+    setEditandoId(null);
+    setDescricaoEditada('');
+    carregarTarefas();
+  } catch (error) {
+    Alert.alert('Erro', 'Falha ao editar tarefa.');
+    console.error(error);
+  }
+};
 
-  const renderItem = ({ item }) => (
+const renderItem = ({ item }) => (
+  <View
+    style={[
+      styles.tarefaItem,
+      item.concluida ? styles.tarefaConcluida : styles.tarefaPendente,
+    ]}
+  >
+    {editandoId === item.id ? (
+      <TextInput
+        value={descricaoEditada}
+        onChangeText={setDescricaoEditada}
+        onBlur={() => salvarEdicao(item.id)}
+        onSubmitEditing={() => salvarEdicao(item.id)}
+        autoFocus
+        style={styles.tarefaTexto}
+      />
+    ) : (
+      <TouchableOpacity
+        onPress={() => alternarConclusao(item)}
+        style={{ flex: 1 }}
+      >
+        <Text
+          style={[
+            styles.tarefaTexto,
+            item.concluida && styles.tarefaTextoConcluida,
+          ]}
+        >
+          {item.descricao}
+        </Text>
+      </TouchableOpacity>
+    )}
+
     <TouchableOpacity
-      style={[styles.tarefaItem, item.concluida && styles.tarefaConcluida]}
-      onPress={() => alternarConclusao(item)}
+      onPress={() => {
+        setEditandoId(item.id);
+        setDescricaoEditada(item.descricao);
+      }}
     >
-      <Text style={[styles.tarefaTexto, item.concluida && styles.tarefaTextoConcluida]}>
-        {item.nome}
-      </Text>
+      <Icon name="edit" size={20} color="#6a1b9a" />
     </TouchableOpacity>
-  );
+  </View>
+);
+
+
+
+  
 
   if (!plano) {
     return (
@@ -112,22 +172,32 @@ const styles = StyleSheet.create({
     color: '#6a1b9a',
   },
   tarefaItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 16,
-    backgroundColor: '#f7e9ff',
     borderRadius: 10,
     marginBottom: 12,
   },
-  tarefaConcluida: {
-    backgroundColor: '#d1c4e9',
+  
+  tarefaPendente: {
+    backgroundColor: '#ffe5e5', // vermelho claro
   },
+  
+  tarefaConcluida: {
+    backgroundColor: '#c8e6c9', // verde claro
+  },
+  
   tarefaTexto: {
     fontSize: 16,
-    color: '#3c2f5a',
+    color: '#333',
   },
+  
   tarefaTextoConcluida: {
-    textDecorationLine: 'line-through',
-    color: '#7a6a9f',
+    color: '#2e7d32', // verde escuro
+    fontWeight: 'bold',
   },
+ 
   novaTarefaWrapper: {
     flexDirection: 'row',
     marginTop: 12,

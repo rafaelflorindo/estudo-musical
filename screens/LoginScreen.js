@@ -4,8 +4,8 @@ import { AuthContext } from '../contexts/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [email, setEmail] = useState('rafaelflorindo@hotmail.com');
+  const [senha, setSenha] = useState('123');
   const { login } = useContext(AuthContext);
   const navigation = useNavigation();
 
@@ -49,7 +49,11 @@ export default function LoginScreen() {
       <TouchableOpacity onPress={() => navigation.navigate('Registrar')}>
         <Text style={styles.link}>Não tem conta? Cadastre-se</Text>
       </TouchableOpacity>
+      <View>
+        <Text>Desenvolvido por: Rafael Florindo - 2025</Text>
+      </View>
     </View>
+   
   );
 }
 
