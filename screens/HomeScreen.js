@@ -11,9 +11,9 @@ export default function HomeScreen() {
   const navigation = useNavigation();
 
   const [editandoId, setEditandoId] = useState(null);
-const [descricaoEditada, setDescricaoEditada] = useState('');
+  const [descricaoEditada, setDescricaoEditada] = useState('');
 
-
+  
   useEffect(() => {
     carregarPlanos();
   }, []);
@@ -72,7 +72,10 @@ const [descricaoEditada, setDescricaoEditada] = useState('');
   return (
     <View style={styles.container}>
       <Text style={styles.titulo}>Seus Planos de Estudo</Text>
-
+      <TouchableOpacity
+      
+      onPress={carregarPlanos}><Text style={styles.titulo}>Atualizar</Text></TouchableOpacity>
+  
       <FlatList
         data={planos}
         keyExtractor={(item) => item.id.toString()}
@@ -85,7 +88,7 @@ const [descricaoEditada, setDescricaoEditada] = useState('');
         onPress={() => navigation.navigate('NovoPlano')}
       >
         <Text style={styles.botaoTexto}>+ Novo Plano</Text>
-      </TouchableOpacity>
+      </TouchableOpacity>     
     </View>
   );
 }
